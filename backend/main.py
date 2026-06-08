@@ -19,8 +19,8 @@ estado = {
     "modo": "AUTOMATICO",
     "temp": 28.0,
     "hum_aire": 65.0,
-    "hum_suelo1": 42.0,
-    "hum_suelo2": 55.0,
+    "hum_suelo1": 800.0,
+    "hum_suelo2": 800.0,
     "luz": 310,
     "gas": 125,
     "riego": "RIEGO_OFF",
@@ -46,6 +46,38 @@ def actualizar_sensores():
     estado["gas"]       = max(80, min(400, estado["gas"] + random.randint(-5, 5)))
 
 
+def clasificar_suelo(val):
+    if val < 30:
+        return "SECO"
+    elif val > 70:
+        return "SATURADO"
+    else:
+        return "NORMAL"
+
+
+def revisar_suelo_automatico():
+    s1 = clasificar_suelo(estado["hum_suelo1"])
+    s2 = clasificar_suelo(estado["hum_suelo2"])
+
+    # Área 1
+    if s1 == "SECO" and estado["riego"] == "RIEGO_OFF":
+        estado["riego"] = "RIEGO_AREA1"
+        estado["global"] = "RIEGO_ACTIVO"
+        agregar_evento("INFO", "Suelo Área 1 SECO — riego activado automáticamente")
+
+    elif s1 == "SATURADO":
+        agregar_evento("WARN", "Suelo Área 1 SATURADO — riego bloqueado")
+
+    # Área 2
+    if s2 == "SECO" and estado["riego"] == "RIEGO_OFF":
+        estado["riego"] = "RIEGO_AREA2"
+        estado["global"] = "RIEGO_ACTIVO"
+        agregar_evento("INFO", "Suelo Área 2 SECO — riego activado automáticamente")
+
+    elif s2 == "SATURADO":
+        agregar_evento("WARN", "Suelo Área 2 SATURADO — riego bloqueado")
+
+
 # ══════════════════════════════════════════════════════════════════
 #  ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
@@ -53,7 +85,9 @@ def actualizar_sensores():
 # GET /sensores — retorna todas las lecturas actuales
 @app.get("/sensores")
 def get_sensores():
-    actualizar_sensores()  # simula nueva lectura cada vez que el frontend pregunta
+    actualizar_sensores()
+    if estado["modo"] == "AUTOMATICO":
+        revisar_suelo_automatico()
     return {
         "temp": estado["temp"],
         "hum_aire": estado["hum_aire"],
@@ -61,6 +95,8 @@ def get_sensores():
         "hum_suelo2": estado["hum_suelo2"],
         "luz": estado["luz"],
         "gas": estado["gas"],
+        "clasificacion_suelo1": clasificar_suelo(estado["hum_suelo1"]),
+        "clasificacion_suelo2": clasificar_suelo(estado["hum_suelo2"]),
     }
 
 # GET /estado — retorna el estado completo del sistema

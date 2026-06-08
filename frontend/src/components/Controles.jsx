@@ -54,17 +54,41 @@ export default function Controles({ estado, onAccion }) {
         </div>
 
         {/* Riego */}
-        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 sm:col-span-2">
-          <div className="mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Sistema de Riego</span>
-            <p className="text-sm font-medium mt-1">
-              Válvula activa: <span className="font-bold text-blue-600 uppercase">{estado.riego}</span>
-            </p>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4 sm:col-span-2">
+          <h3 className="font-semibold text-gray-700 mb-3">💧 Riego</h3>
+
+          <div className={`rounded p-2 text-center font-bold mb-3 ${
+            estado.riego === "RIEGO_OFF"
+              ? "bg-gray-100 text-gray-400"
+              : "bg-blue-100 text-blue-600 animate-pulse"
+          }`}>
+            {estado.riego === "RIEGO_OFF" ? "⭕ Riego inactivo" : `💧 ${estado.riego} activo`}
           </div>
-          <div className="grid grid-cols-3 gap-2">
-            <button className="bg-blue-50 text-blue-700 border border-blue-100 text-xs sm:text-sm font-medium py-2 px-2 rounded-lg hover:bg-blue-100 active:scale-95 transition-all" onClick={() => postRiego("area1").then(onAccion)}>Área 1</button>
-            <button className="bg-blue-50 text-blue-700 border border-blue-100 text-xs sm:text-sm font-medium py-2 px-2 rounded-lg hover:bg-blue-100 active:scale-95 transition-all" onClick={() => postRiego("area2").then(onAccion)}>Área 2</button>
-            <button className="bg-rose-600 text-white text-xs sm:text-sm font-medium py-2 px-2 rounded-lg hover:bg-rose-700 active:scale-95 transition-all" onClick={() => postRiego("off").then(onAccion)}>Detener</button>
+
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => postRiego("area1").then(onAccion)}
+              disabled={estado.riego === "RIEGO_AREA1"}
+              className="bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Activar Área 1
+            </button>
+
+            <button
+              onClick={() => postRiego("area2").then(onAccion)}
+              disabled={estado.riego === "RIEGO_AREA2"}
+              className="bg-blue-500 hover:bg-blue-600 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Activar Área 2
+            </button>
+
+            <button
+              onClick={() => postRiego("off").then(onAccion)}
+              disabled={estado.riego === "RIEGO_OFF"}
+              className="bg-red-500 hover:bg-red-600 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Detener
+            </button>
           </div>
         </div>
 
