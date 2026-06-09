@@ -38,8 +38,28 @@ eventos = [
     {"id": 1, "tipo": "INFO", "msg": "Sistema iniciado"},
 ]
 
+comandos = []
+actuadores = []
+
 def agregar_evento(tipo, msg):
     eventos.append({"id": len(eventos) + 1, "tipo": tipo, "msg": msg})
+
+
+def agregar_comando(origen, accion, valor):
+    comandos.append({
+        "id": len(comandos) + 1,
+        "origen": origen,
+        "accion": accion,
+        "valor": str(valor),
+    })
+
+
+def agregar_actuador(actuador, estado_act):
+    actuadores.append({
+        "id": len(actuadores) + 1,
+        "actuador": actuador,
+        "estado": estado_act,
+    })
 
 # ── Simula lectura de sensores con variación aleatoria ─────────────
 def actualizar_sensores():
@@ -164,10 +184,22 @@ def get_estado():
 def get_eventos():
     return eventos[-20:]  # últimos 20
 
+
+@app.get("/comandos")
+def get_comandos():
+    return comandos[-20:]
+
+
+@app.get("/actuadores")
+def get_actuadores():
+    return actuadores[-20:]
+
 # POST /riego — controla la bomba de agua
 @app.post("/riego")
 def post_riego(cmd: ComandoRiego):
     estado["riego"] = f"RIEGO_{cmd.area.upper()}" if cmd.area != "off" else "RIEGO_OFF"
+    agregar_comando("dashboard", "riego", cmd.area)
+    agregar_actuador("BOMBA", estado["riego"])
     if cmd.area != "off":
         estado["global"] = "RIEGO_ACTIVO"
         agregar_evento("INFO", f"Riego activado: {cmd.area}")

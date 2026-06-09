@@ -1,8 +1,9 @@
 import { useState, useEffect } from "react";
-import { getSensores, getEstado, getEventos } from "./api";
+import { getSensores, getEstado, getEventos, getComandos, getActuadores } from "./api";
 import Sensores from "./components/Sensores";
 import Controles from "./components/Controles";
 import Eventos from "./components/Eventos";
+import Historial from "./components/Historial";
 import AnalisisArm from "./components/AnalisisArm"; // <-- Importación nueva
 import GraficasHistoricas from "./components/GraficasHistoricas"; // <-- Importación nueva
 
@@ -10,11 +11,15 @@ export default function App() {
   const [sensores, setSensores] = useState(null);
   const [estado,   setEstado]   = useState(null);
   const [eventos,  setEventos]  = useState([]);
+  const [comandos,   setComandos]   = useState([]);
+  const [actuadores, setActuadores] = useState([]);
 
   const cargarTodo = () => {
     getSensores().then(r => setSensores(r.data));
     getEstado()  .then(r => setEstado(r.data));
     getEventos() .then(r => setEventos(r.data));
+    getComandos()  .then(r => setComandos(r.data));
+    getActuadores().then(r => setActuadores(r.data));
   };
 
   useEffect(() => {
@@ -115,6 +120,9 @@ export default function App() {
             <Eventos eventos={eventos} />
           </div>
         </div>
+
+        <hr className="my-6" />
+        <Historial eventos={eventos} comandos={comandos} actuadores={actuadores} />
 
       </div>
     </div>
