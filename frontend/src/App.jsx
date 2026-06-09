@@ -43,6 +43,45 @@ export default function App() {
           </div>
         )}
 
+        {/* Estado global + alarma */}
+        <div className="flex flex-wrap gap-3 mb-4">
+
+          <div className={`rounded-lg px-4 py-2 font-bold text-sm ${
+            estado?.global === "EMERGENCIA"   ? "bg-red-600 text-white" :
+            estado?.global === "ADVERTENCIA"  ? "bg-yellow-400 text-white" :
+            estado?.global === "RIEGO_ACTIVO" ? "bg-blue-500 text-white" :
+            estado?.global === "MODO_MANUAL"  ? "bg-orange-400 text-white" :
+                                                "bg-green-500 text-white"
+          }`}>
+            Estado: {estado?.global || "..."}
+          </div>
+
+          <div className={`rounded-lg px-4 py-2 font-bold text-sm ${
+            estado?.alarma ? "bg-red-600 text-white animate-pulse" : "bg-gray-200 text-gray-500"
+          }`}>
+            {estado?.alarma ? "🔔 ALARMA ACTIVA" : "🔕 Alarma OK"}
+          </div>
+
+          <div className={`rounded-lg px-4 py-2 text-sm ${
+            estado?.luces ? "bg-yellow-100 text-yellow-700" : "bg-gray-100 text-gray-400"
+          }`}>
+            💡 Luces: {estado?.luces ? "ON" : "OFF"}
+          </div>
+
+          <div className={`rounded-lg px-4 py-2 text-sm ${
+            estado?.riego !== "RIEGO_OFF" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-400"
+          }`}>
+            💧 {estado?.riego || "RIEGO_OFF"}
+          </div>
+
+          <div className={`rounded-lg px-4 py-2 text-sm ${
+            estado?.ventilacion !== "VENTILACION_OFF" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-400"
+          }`}>
+            🌀 {estado?.ventilacion || "VENTILACION_OFF"}
+          </div>
+
+        </div>
+
         {/* Encabezado */}
         <header className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
@@ -67,7 +106,7 @@ export default function App() {
           <div className="lg:col-span-2 space-y-6">
             <Sensores datos={sensores} />
             <GraficasHistoricas datosSensores={sensores} /> {/* <-- Agregado */}
-            <Controles estado={estado} onAccion={cargarTodo} />
+            <Controles estado={estado} datos={sensores} onAccion={cargarTodo} />
             <AnalisisArm datosSensores={sensores} /> {/* <-- Agregado */}
           </div>
           

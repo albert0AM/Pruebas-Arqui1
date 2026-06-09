@@ -7,6 +7,7 @@ export default function Sensores({ datos }) {
 
   const tempAlta = datos.temp > UMBRAL_TEMP;
   const gasAlto = datos.gas > UMBRAL_GAS;
+  const gasEstado = datos.clasificacion_gas || "GAS_NORMAL";
   const suelo1 = datos.clasificacion_suelo1 || "NORMAL";
   const suelo2 = datos.clasificacion_suelo2 || "NORMAL";
 
@@ -44,6 +45,20 @@ export default function Sensores({ datos }) {
         <div className="bg-orange-100 border border-orange-400 text-orange-700 px-4 py-3 rounded mb-4">
           ⚠️ <strong>Gas / humo detectado:</strong> {datos.gas} ppm supera el umbral de {UMBRAL_GAS} ppm —
           estado: EMERGENCIA.
+        </div>
+      )}
+
+      {gasEstado === "GAS_ADVERTENCIA" && (
+        <div className="bg-orange-100 border border-orange-400 text-orange-700 px-4 py-3 rounded mb-4">
+          ⚠️ <strong>Advertencia de gas:</strong> {datos.gas} ppm —
+          nivel elevado detectado.
+        </div>
+      )}
+
+      {gasEstado === "GAS_EMERGENCIA" && (
+        <div className="bg-red-600 text-white px-4 py-3 rounded mb-4 animate-pulse">
+          🚨 <strong>EMERGENCIA:</strong> Gas/humo {datos.gas} ppm —
+          ventilación forzada, buzzer y LED rojo activados.
         </div>
       )}
 

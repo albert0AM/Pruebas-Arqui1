@@ -19,8 +19,8 @@ estado = {
     "modo": "AUTOMATICO",
     "temp": 28.0,
     "hum_aire": 65.0,
-    "hum_suelo1": 800.0,
-    "hum_suelo2": 800.0,
+    "hum_suelo1": 15.0,
+    "hum_suelo2": 40.0,
     "luz": 310,
     "gas": 125,
     "riego": "RIEGO_OFF",
@@ -28,6 +28,11 @@ estado = {
     "luces": False,
     "alarma": False,
 }
+
+UMBRAL_LUZ = 200  # lux — el equipo puede cambiar este valor
+UMBRAL_TEMP_VENT = 33   # °C
+UMBRAL_GAS_WARN = 200  # ppm — advertencia
+UMBRAL_GAS_EMERG = 250  # ppm — emergencia
 
 eventos = [
     {"id": 1, "tipo": "INFO", "msg": "Sistema iniciado"},
@@ -78,6 +83,52 @@ def revisar_suelo_automatico():
         agregar_evento("WARN", "Suelo Área 2 SATURADO — riego bloqueado")
 
 
+def revisar_luz_automatico():
+    if estado["luz"] < UMBRAL_LUZ and not estado["luces"]:
+        estado["luces"] = True
+        agregar_evento("INFO", f"Luz baja ({estado['luz']} lux) — iluminación artificial ON")
+
+    elif estado["luz"] >= UMBRAL_LUZ and estado["luces"]:
+        estado["luces"] = False
+        agregar_evento("INFO", f"Luz suficiente ({estado['luz']} lux) — iluminación artificial OFF")
+
+
+def clasificar_gas(val):
+    if val >= UMBRAL_GAS_EMERG:
+        return "GAS_EMERGENCIA"
+    elif val >= UMBRAL_GAS_WARN:
+        return "GAS_ADVERTENCIA"
+    else:
+        return "GAS_NORMAL"
+
+
+def revisar_ventilacion_automatico():
+    gas_estado = clasificar_gas(estado["gas"])
+
+    if gas_estado == "GAS_EMERGENCIA":
+        if estado["ventilacion"] != "VENTILACION_EMERGENCIA":
+            estado["ventilacion"] = "VENTILACION_EMERGENCIA"
+            estado["global"] = "EMERGENCIA"
+            estado["alarma"] = True
+            agregar_evento("ERROR", f"EMERGENCIA — gas {estado['gas']} ppm — ventilación forzada")
+
+    elif estado["modo"] == "AUTOMATICO":
+        if estado["temp"] > UMBRAL_TEMP_VENT:
+            if estado["ventilacion"] == "VENTILACION_OFF":
+                estado["ventilacion"] = "VENTILACION_ON"
+                agregar_evento("WARN", f"Temperatura alta ({estado['temp']}°C) — ventilación ON")
+        else:
+            if estado["ventilacion"] == "VENTILACION_ON":
+                estado["ventilacion"] = "VENTILACION_OFF"
+                agregar_evento("INFO", "Temperatura normal — ventilación OFF")
+
+
+def revisar_estado_global():
+    if clasificar_gas(estado["gas"]) == "GAS_EMERGENCIA":
+        estado["global"] = "EMERGENCIA"
+        return
+
+
 # ══════════════════════════════════════════════════════════════════
 #  ENDPOINTS
 # ══════════════════════════════════════════════════════════════════
@@ -86,17 +137,21 @@ def revisar_suelo_automatico():
 @app.get("/sensores")
 def get_sensores():
     actualizar_sensores()
+    revisar_ventilacion_automatico()  # <- siempre, no solo en automático
+    revisar_estado_global()
     if estado["modo"] == "AUTOMATICO":
         revisar_suelo_automatico()
+        revisar_luz_automatico()
     return {
-        "temp": estado["temp"],
-        "hum_aire": estado["hum_aire"],
-        "hum_suelo1": estado["hum_suelo1"],
-        "hum_suelo2": estado["hum_suelo2"],
-        "luz": estado["luz"],
-        "gas": estado["gas"],
+        "temp":               estado["temp"],
+        "hum_aire":           estado["hum_aire"],
+        "hum_suelo1":         estado["hum_suelo1"],
+        "hum_suelo2":         estado["hum_suelo2"],
+        "luz":                estado["luz"],
+        "gas":                estado["gas"],
         "clasificacion_suelo1": clasificar_suelo(estado["hum_suelo1"]),
         "clasificacion_suelo2": clasificar_suelo(estado["hum_suelo2"]),
+        "clasificacion_gas":    clasificar_gas(estado["gas"]),
     }
 
 # GET /estado — retorna el estado completo del sistema
@@ -131,8 +186,17 @@ def post_luces(cmd: ComandoLuces):
 # POST /ventilacion — controla el ventilador
 @app.post("/ventilacion")
 def post_ventilacion(cmd: ComandoVentilacion):
-    estado["ventilacion"] = "VENTILACION_ON" if cmd.estado else "VENTILACION_OFF"
-    agregar_evento("INFO", f"Ventilación {'ON' if cmd.estado else 'OFF'}")
+    # No se puede apagar si hay emergencia por gas
+    if estado["ventilacion"] == "VENTILACION_EMERGENCIA" and not cmd.estado:
+        return {"ok": False, "msg": "No se puede apagar — emergencia activa"}
+
+    if cmd.estado:
+        estado["ventilacion"] = "VENTILACION_MANUAL"
+        agregar_evento("INFO", "Ventilación activada manualmente desde dashboard")
+    else:
+        estado["ventilacion"] = "VENTILACION_OFF"
+        agregar_evento("INFO", "Ventilación apagada desde dashboard")
+
     return {"ok": True, "ventilacion": estado["ventilacion"]}
 
 # POST /modo — cambia entre automatico y manual

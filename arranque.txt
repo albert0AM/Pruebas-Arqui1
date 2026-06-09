@@ -13,3 +13,6 @@ source venv/bin/activate
 
 
 Commit2
+
+Link discord nupi:
+https://discord.com/invite/nRnJrKDGp

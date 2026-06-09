@@ -1,6 +1,6 @@
 import { postRiego, postLuces, postVentilacion, postModo, postAlarma } from "../api";
 
-export default function Controles({ estado, onAccion }) {
+export default function Controles({ estado, datos, onAccion }) {
   if (!estado) return (
     <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 text-center text-slate-400">
       Cargando controles operativos...
@@ -35,22 +35,48 @@ export default function Controles({ estado, onAccion }) {
         </div>
 
         {/* Luces */}
-        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50 flex flex-col justify-between">
-          <div>
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Iluminación</span>
-            <p className="text-sm font-medium mt-1">
-              Estado: <span className={`font-bold ${estado.luces ? 'text-amber-500' : 'text-slate-500'}`}>{estado.luces ? "ENCENDIDO" : "APAGADO"}</span>
-            </p>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h3 className="font-semibold text-gray-700 mb-3">💡 Iluminación</h3>
+
+          <div className={`rounded p-2 text-center font-bold mb-3 ${
+            estado.luces
+              ? "bg-yellow-100 text-yellow-600"
+              : "bg-gray-100 text-gray-400"
+          }`}>
+            {estado.luces ? "💡 Luces encendidas" : "💡 Luces apagadas"}
           </div>
-          <button 
-            className={`mt-3 w-full text-sm font-semibold py-2 px-4 rounded-lg active:scale-95 transition-all border ${
-              estado.luces 
-                ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' 
-                : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
-            }`}
-            onClick={() => postLuces(!estado.luces).then(onAccion)}>
-            {estado.luces ? "❌ Apagar luces" : "💡 Encender luces"}
-          </button>
+
+          <div className={`text-xs text-center mb-3 font-semibold ${
+            estado.modo === "AUTOMATICO" ? "text-green-600" : "text-orange-500"
+          }`}>
+            {estado.modo === "AUTOMATICO"
+              ? "🤖 Modo automático — Python controla según LDR"
+              : "🖐 Modo manual — tú controlas las luces"}
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => postLuces(true).then(onAccion)}
+              disabled={estado.modo === "AUTOMATICO" || estado.luces}
+              className="bg-yellow-400 hover:bg-yellow-500 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Encender
+            </button>
+
+            <button
+              onClick={() => postLuces(false).then(onAccion)}
+              disabled={estado.modo === "AUTOMATICO" || !estado.luces}
+              className="bg-gray-400 hover:bg-gray-500 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Apagar
+            </button>
+          </div>
+
+          {estado.modo === "AUTOMATICO" && (
+            <p className="text-xs text-gray-400 mt-2">
+              Cambia a modo manual para controlar las luces desde aquí.
+            </p>
+          )}
         </div>
 
         {/* Riego */}
@@ -93,17 +119,59 @@ export default function Controles({ estado, onAccion }) {
         </div>
 
         {/* Ventilación */}
-        <div className="p-4 rounded-xl border border-slate-100 bg-slate-50">
-          <div className="mb-3">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Flujo de Aire</span>
-            <p className="text-sm font-medium mt-1">
-              Ventilación: <span className="font-bold text-teal-600 uppercase">{estado.ventilacion ? "Activa" : "Inactiva"}</span>
+        <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
+          <h3 className="font-semibold text-gray-700 mb-3">🌀 Ventilación</h3>
+
+          <div className={`rounded p-2 text-center font-bold mb-3 ${
+            estado.ventilacion === "VENTILACION_EMERGENCIA" ? "bg-red-100 text-red-600 animate-pulse" :
+            estado.ventilacion === "VENTILACION_ON"         ? "bg-green-100 text-green-600" :
+            estado.ventilacion === "VENTILACION_MANUAL"     ? "bg-orange-100 text-orange-600" :
+                                                              "bg-gray-100 text-gray-400"
+          }`}>
+            {estado.ventilacion === "VENTILACION_EMERGENCIA" && "🚨 EMERGENCIA — ventilación forzada"}
+            {estado.ventilacion === "VENTILACION_ON"         && "✅ Ventilación ON — automático"}
+            {estado.ventilacion === "VENTILACION_MANUAL"     && "🖐 Ventilación ON — manual"}
+            {estado.ventilacion === "VENTILACION_OFF"        && "⭕ Ventilación apagada"}
+          </div>
+
+          {estado.ventilacion !== "VENTILACION_OFF" && (
+            <div className="text-xs text-gray-500 mb-3 text-center">
+              {estado.ventilacion === "VENTILACION_EMERGENCIA" && `Gas: ${datos?.gas} ppm — por encima del umbral`}
+              {estado.ventilacion === "VENTILACION_ON"         && `Temperatura: ${datos?.temp}°C — por encima del umbral`}
+              {estado.ventilacion === "VENTILACION_MANUAL"     && "Activado manualmente desde dashboard"}
+            </div>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => postVentilacion(true).then(onAccion)}
+              disabled={
+                estado.ventilacion === "VENTILACION_ON" ||
+                estado.ventilacion === "VENTILACION_MANUAL" ||
+                estado.ventilacion === "VENTILACION_EMERGENCIA"
+              }
+              className="bg-green-500 hover:bg-green-600 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Encender
+            </button>
+
+            <button
+              onClick={() => postVentilacion(false).then(onAccion)}
+              disabled={
+                estado.ventilacion === "VENTILACION_OFF" ||
+                estado.ventilacion === "VENTILACION_EMERGENCIA"
+              }
+              className="bg-gray-400 hover:bg-gray-500 disabled:opacity-40 text-white text-sm px-3 py-2 rounded"
+            >
+              Apagar
+            </button>
+          </div>
+
+          {estado.ventilacion === "VENTILACION_EMERGENCIA" && (
+            <p className="text-xs text-red-500 mt-2">
+              No se puede apagar manualmente durante emergencia.
             </p>
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <button className="bg-teal-50 text-teal-700 border border-teal-100 text-xs font-medium py-2 rounded-lg hover:bg-teal-100 active:scale-95 transition-all" onClick={() => postVentilacion(true).then(onAccion)}>Encender</button>
-            <button className="bg-slate-200 text-slate-700 text-xs font-medium py-2 rounded-lg hover:bg-slate-300 active:scale-95 transition-all" onClick={() => postVentilacion(false).then(onAccion)}>Apagar</button>
-          </div>
+          )}
         </div>
 
         {/* Alarma */}
