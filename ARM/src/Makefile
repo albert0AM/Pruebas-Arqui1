@@ -1,26 +1,29 @@
-# Template: ARM64 en host x86 y x64 con QEMU (flujo multi-fuente)
-# Copia este archivo como Makefile dentro de la lección.
+# Makefile: ARM64 multi-programa en host x86/x64 con QEMU
+# Cada archivo .s (excepto utils.s) genera su propio ejecutable.
 
 # ----------------------------------------------------------
-# Toolchain (compilación cruzada AArch64)
+# Toolchain
 # ----------------------------------------------------------
 AS      = aarch64-linux-gnu-as
 LD      = aarch64-linux-gnu-ld
 QEMU    = qemu-aarch64
 
 # ----------------------------------------------------------
-# Rutas y nombres de salida
+# Rutas
 # ----------------------------------------------------------
 BUILD   = build
-TARGET  = $(BUILD)/main 
 
 # ----------------------------------------------------------
 # Fuentes
+# Archivos que se usan con .include y NO se ensamblan directo
 # ----------------------------------------------------------
-MAIN_SRC = main.s
-AUX_SRCS = $(filter-out $(MAIN_SRC), $(wildcard *.s))
-SRCS     = $(MAIN_SRC) $(AUX_SRCS)
-OBJS     = $(patsubst %.s,$(BUILD)/%.o,$(SRCS))
+INCLUDES = utils.s
+
+# Detectar todos los .s excepto los de INCLUDES
+PROGS    = $(filter-out $(INCLUDES), $(wildcard *.s))
+
+# Ejecutables finales: build/suma, build/resta, etc.
+TARGETS  = $(patsubst %.s,$(BUILD)/%,$(PROGS))
 
 # ----------------------------------------------------------
 # Flags
@@ -32,32 +35,42 @@ LDFLAGS =
 # Targets principales
 # ----------------------------------------------------------
 
-all: $(TARGET)
+all: $(TARGETS)
 
-# Crear el directorio build si no existe
+# Crear directorio build si no existe
 $(BUILD):
 	mkdir -p $(BUILD)
 
-# Ensamblado de cualquier archivo .s a .o
+# Ensamblar cada .s a su .o
 $(BUILD)/%.o: %.s | $(BUILD)
 	$(AS) $(ASFLAGS) -o $@ $<
 
-# Enlazado final
-$(TARGET): $(OBJS)
-	$(LD) $(LDFLAGS) -o $@ $(OBJS)
+# Enlazar cada .o a su propio ejecutable
+$(BUILD)/%: $(BUILD)/%.o
+	$(LD) $(LDFLAGS) -o $@ $<
 
 # ----------------------------------------------------------
-# Ejecución (QEMU)
+# Ejecución: correr todos los programas con QEMU
 # ----------------------------------------------------------
-run: $(TARGET)
-	$(QEMU) $(TARGET)
+run: all
+	@for target in $(TARGETS); do \
+		echo ">>> Ejecutando $$target ..."; \
+		$(QEMU) $$target; \
+		echo ""; \
+	done
 
 # ----------------------------------------------------------
-# Depuración (QEMU + GDB remoto)
+# Ejecutar uno solo: make run-suma, make run-resta, etc.
 # ----------------------------------------------------------
-gdb: $(TARGET)
-	@echo "Starting QEMU and waiting for GDB on port 1234..."
-	$(QEMU) -g 1234 $(TARGET)
+run-%: $(BUILD)/%
+	$(QEMU) $< $(ARGS)
+
+# ----------------------------------------------------------
+# Depuración GDB para un programa: make gdb-suma
+# ----------------------------------------------------------
+gdb-%: $(BUILD)/%
+	@echo "Esperando GDB en puerto 1234 para $< ..."
+	$(QEMU) -g 1234 $<
 
 # ----------------------------------------------------------
 # Limpieza
@@ -66,11 +79,16 @@ clean:
 	rm -rf $(BUILD)
 
 # ----------------------------------------------------------
-# Información de ayuda
+# Info
 # ----------------------------------------------------------
 info:
-	@echo "Targets disponibles:"
-	@echo "  make        -> ensambla y enlaza el programa ARM64"
-	@echo "  make run    -> ejecuta el binario en QEMU"
-	@echo "  make gdb    -> ejecuta QEMU y espera conexión de GDB (VS Code)"
-	@echo "  make clean  -> elimina el directorio build/"
+	@echo "Programas detectados: $(PROGS)"
+	@echo "Ejecutables a generar: $(TARGETS)"
+	@echo "Archivos incluidos (.include): $(INCLUDES)"
+	@echo ""
+	@echo "Comandos disponibles:"
+	@echo "  make           -> ensambla y enlaza todos los programas"
+	@echo "  make run       -> ejecuta todos con QEMU"
+	@echo "  make run-suma  -> ejecuta solo suma"
+	@echo "  make gdb-suma  -> depura suma con GDB"
+	@echo "  make clean     -> elimina build/"
