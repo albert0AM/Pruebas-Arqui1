@@ -9,10 +9,19 @@ source venv/bin/activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 deactivate
+
+
+Frontend:
+python -m venv venv
+
+
+venv\Scripts\activate
+npm install
+npm install chart.js react-chartjs-2
+
+
 source venv/bin/activate
 
+npm run dev
 
-Commit2
 
-Link discord nupi:
-https://discord.com/invite/nRnJrKDGp
