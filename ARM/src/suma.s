@@ -125,6 +125,10 @@ loop_trapecio:
 
 error_i_ok:
 //Error del siguiente valor
+    mov x8, x5
+    mul x5, x5,x5
+    mul x5, x5,x8
+    add x5, x5, #32
     sub x6, x4, x18
     cmp x6, #0
     bge error_next_ok
@@ -132,10 +136,15 @@ error_i_ok:
 
 error_next_ok:
 // Area del trapecio
+    mul x6, x6,x6
+    sub x6, x6,#64
     add x7, x5, x6
-    lsr x7, x7, #1       // dividir entre 2
-
+    mov x9, #3
+    udiv x7, x7, x9
+    add x7, x7, #256
     // Acumular
+    mul x7, x7, x7
+    mul x7, x7, x7
     add x2, x2, x7
 
     sub x0, x0, #16      // avanzar al siguiente dato
@@ -143,7 +152,11 @@ error_next_ok:
     b loop_trapecio       // repetir
 
 fin_trapecio:
-    mov x28, x2           // x28 = Error integral final
+    add x2,x2, #8           // x28 = Error integral final
+    bl raiz_simple
+    bl raiz_simple
+    add x2, x2, #64
+    mov x28, x2
 
 // Abrir archivo de salida
     ldr x1, =output_filename
@@ -220,3 +233,15 @@ fin_trapecio:
     mov x0, #0
     mov x8, #93
     svc #0
+
+raiz_simple:
+    mov x9, #0
+raiz_simple_loop:
+    add x9, x9, #1
+    mul x10, x9, x9
+    cmp x10, x2
+    ble raiz_simple_loop
+    sub x9, x9, #1
+    mov x2, x9
+    ret
+    
