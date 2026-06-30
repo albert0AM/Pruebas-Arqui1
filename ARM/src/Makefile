@@ -62,6 +62,7 @@ run: all
 # ----------------------------------------------------------
 # Ejecutar uno solo: make run-suma, make run-resta, etc.
 # ----------------------------------------------------------
+run-suma: ARGS ?= 2
 run-%: $(BUILD)/%
 	$(QEMU) $< $(ARGS)
 
@@ -89,6 +90,6 @@ info:
 	@echo "Comandos disponibles:"
 	@echo "  make           -> ensambla y enlaza todos los programas"
 	@echo "  make run       -> ejecuta todos con QEMU"
-	@echo "  make run-suma  -> ejecuta solo suma"
+	@echo "  make run-suma  -> ejecuta suma (por defecto usa la columna 2; override con ARGS=)"
 	@echo "  make gdb-suma  -> depura suma con GDB"
 	@echo "  make clean     -> elimina build/"

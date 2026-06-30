@@ -1,99 +1,222 @@
+// Proyecto No.2
+// Rutina 4 : Integral del error por regla del trapecio
+.include "utils.s"
+.include "columnas_txt.s"
 .data
 
-msg_no_arg:
-    .ascii "Debe enviar una columna\n"
-    msg_no_arg_len = . - msg_no_arg
+//Archivo de salida
+output_filename: 
+    .asciz "resultado_integral.txt" 
 
-msg_result:
-    .ascii "Suma: "
-    msg_result_len = . - msg_result
+txt_cabeza:
+    .ascii "CALC=ERROR_INTEGRAL"
+    txt_cabeza_len = . - txt_cabeza
 
-newline:
-    .ascii "\n"
+txt_columnas:
+    .ascii "\nCOLUMN="
+    txt_columnas_len = . - txt_columnas
 
-.text
+txt_inicio:
+    .ascii "\nWINDOW_START="
+    txt_inicio_len = . - txt_inicio
 
-.include "utils.s"
+txt_fin:
+    .ascii "WINDOW_END="
+    txt_fin_len = . - txt_fin
 
+txt_conteo:
+    .ascii "COUNT="
+    txt_conteo_len = . - txt_conteo
+
+txt_valorideal:
+    .ascii "IDEAL="
+    txt_valorideal_len = . - txt_valorideal
+
+txt_error:
+    .ascii "ERROR_INTEGRAL="
+    txt_error_len = . - txt_error
+
+txt_estado:
+    .ascii "STATUS=OK\n"
+    txt_estado_len = . - txt_estado
+
+
+salida_buffer: //buffer de salida
+    .skip 256
+
+ideales:
+    .quad 12  //columna 1 - TEMP
+    .quad 24  //columna 2 - HUM_AIRE
+    .quad 15   //columna 3 - HUM_SUELO_1
+    .quad 10   //columna 4 - HUM_SUELO_2
+    .quad 12  //columna 5 - LUZ
+    .quad 10   //columna 6 - GAS
+    .quad 25   //columna 7 - RIEGO_1
+    .quad 10   //columna 8 - RIEGO_2 
+
+.section .text //seccion de codigo
 .global _start
 
 _start:
-    // argc esta en [sp]
-    ldr x0, [sp]
+//Leer argumentos 
+    ldr x0,[sp]
+    cmp x0,#4
+    blt usar_defaults
 
-    // validar que exista argv[1]
-    cmp x0, #2
-    blt no_argumento
+//Argumento 1 Columna
+    ldr x1,[sp,#16] 
+    ldrb w11,[x1]
+    sub w11,w11,#'0'
 
-    // argv[1] esta en [sp + 16]
-    ldr x21, [sp, #16]
-    mov x5, #10
+//Argumento 2 Rango inicial
+    ldr x0,[sp,#24]
+    mov x5,#10
+    bl atoi_arg
+    mov x13,x0
 
-    // convertir parametro a numero
-    bl atoi_csv
+//Argumento 3 Rango final
+    ldr x0,[sp,#32]
+    mov x5,#10
+    bl atoi_arg
+    mov x14,x0
 
-    // si no leyo numero, error
-    cbz x7, no_argumento
+    b procesar_columna
 
-    // x11 = columna seleccionada
-    mov x11, x10
+    usar_defaults:
+    mov x11,#1 //Columa defecto
+    mov x13,#1 //Rango inicial defecto
+    mov x14,#5 //Rango final defecto
 
-    // llamar a utils
+procesar_columna:
+    mov x15,x14
+
     bl read_column_to_stack
 
-    // guardar salidas de utils
-    mov x24, x0             // puntero actual para recorrer stack
-    mov x25, x1             // limite final
-    mov x26, x2             // cantidad de datos
-    mov x27, x3             // posicion para restaurar stack
+    //Guardar los valores retornados
+    mov x24, x0 //puntero al primer dato del stack
+    mov x25, x1 //puntero al limite de la cola del stack
+    mov x26, x2 //cantidad de datos leidos
+    mov x27, x3 //puntero al sp original para restaurar al final
 
-    // suma total
-    mov x28, #0
+    //Identificar el valor ideal correspondiente a la columna
+    ldr x9, =ideales // puntero a la tabla de valores ideales
+    sub x10, x11, #1 // calcular el índice   
+    lsl x10, x10, #3 // multiplicar por 8 para obtener el tamaño de cada elemento
+    ldr x18, [x9, x10] // x18 = ideal de la columna
 
-sum_loop:
-    cmp x24, x25
-    beq print_result
+    //Inicio del calculo de la integral del error
+    mov x0, x25           // empezar desde limite superior (primer dato leido)
+    sub x0, x0, #16       // retroceder 16 para apuntar al primer dato real
+    mov x1, x26           // cantidad de datos
+    sub x1, x1, #1        // N-1 iteraciones
+    mov x2, #0            // acumulador de la integral
 
-    ldr x10, [x24], #16
-    add x28, x28, x10
+loop_trapecio:
+    cbz x1, fin_trapecio //si x1 es cero, salir del bucle
 
-    b sum_loop
+    ldr x3, [x0]          //cargar el primer valor
+    ldr x4, [x0, #-16]    //cargar el segundo valor
 
-print_result:
-    mov x0, #1
-    ldr x1, =msg_result
-    mov x2, msg_result_len
-    mov x8, #64
-    svc #0
+//Calcular el error de cada valor con respecto al ideal
+    sub x5, x3, x18
+    cmp x5, #0
+    bge error_i_ok
+    neg x5, x5
 
+error_i_ok:
+//Error del siguiente valor
+    sub x6, x4, x18
+    cmp x6, #0
+    bge error_next_ok
+    neg x6, x6
+
+error_next_ok:
+// Area del trapecio
+    add x7, x5, x6
+    lsr x7, x7, #1       // dividir entre 2
+
+    // Acumular
+    add x2, x2, x7
+
+    sub x0, x0, #16      // avanzar al siguiente dato
+    sub x1, x1, #1       // decrementar contador
+    b loop_trapecio       // repetir
+
+fin_trapecio:
+    mov x28, x2           // x28 = Error integral final
+
+// Abrir archivo de salida
+    ldr x1, =output_filename
+    bl write_file_open
+
+// Escribir CALC=ERROR_INTEGRAL
+    ldr x1, =txt_cabeza
+    mov x2, #txt_cabeza_len
+    bl write_file_write
+
+// Escribir COLUMN=
+    ldr x1, =txt_columnas
+    mov x2, #txt_columnas_len
+    bl write_file_write
+// Escribir nombre de la columna segun x11
+    mov x0, x11
+    bl write_column_name
+
+// Escribir WINDOW_START=
+    ldr x1, =txt_inicio
+    mov x2, #txt_inicio_len
+    bl write_file_write
+
+    // Escribir el valor
+    mov x0, x13
+    bl utils_write_uint
+
+// Escribir WINDOW_END=
+    ldr x1, =txt_fin
+    mov x2, #txt_fin_len
+    bl write_file_write
+
+    // Escribir el valor
+    mov x0, x15
+    bl utils_write_uint
+
+// Escribir COUNT=
+    ldr x1, =txt_conteo
+    mov x2, #txt_conteo_len
+    bl write_file_write
+
+    // Escribir el valor
+    mov x0, x26
+    bl utils_write_uint
+
+// Escribir IDEAL=
+    ldr x1, =txt_valorideal
+    mov x2, #txt_valorideal_len
+    bl write_file_write
+
+    // Escribir el valor
+    mov x0, x18
+    bl utils_write_uint
+
+// Escribir ERROR_INTEGRAL=
+    ldr x1, =txt_error
+    mov x2, #txt_error_len
+    bl write_file_write
+
+    // Escribir el valor
     mov x0, x28
-    bl print_uint
+    bl utils_write_uint
 
-    mov x0, #1
-    ldr x1, =newline
-    mov x2, #1
-    mov x8, #64
-    svc #0
+// Escribir STATUS=OK
+    ldr x1, =txt_estado
+    mov x2, #txt_estado_len
+    bl write_file_write
 
+    // Cerrar archivo
+    bl write_file_close
+
+// Restaurar stack y salir
     mov sp, x27
-
-    b exit_ok
-
-no_argumento:
-    mov x0, #1
-    ldr x1, =msg_no_arg
-    mov x2, msg_no_arg_len
-    mov x8, #64
-    svc #0
-
-    b exit_error
-
-exit_ok:
     mov x0, #0
-    mov x8, #93
-    svc #0
-
-exit_error:
-    mov x0, #1
     mov x8, #93
     svc #0
